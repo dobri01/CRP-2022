@@ -4,7 +4,7 @@ import math
 import rospy
 
 from . util import rotateQuaternion, getHeading
-from random import random
+import random
 
 from time import time
 
@@ -45,7 +45,25 @@ class PFLocaliser(PFLocaliserBase):
 
         # how do we spread it out on a map we don't know
 
+        # for now set the noise/ standard deviation to 1
+        noise = 1.3
 
+        poseArray = PoseArray()
+
+        temp = []
+
+        for count in range(self.NUMBER_PREDICTED_READINGS):
+            particle = Pose()
+            particle.position.x = random.gauss(initialpose.pose.pose.position.x, noise)
+            particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
+
+            particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation, random.uniform(0, 2 * math.pi))
+
+            temp.append(particle)
+
+        poseArray.poses = temp
+
+        return poseArray
 
         """
         Set particle cloud to initialpose plus noise
@@ -61,22 +79,22 @@ class PFLocaliser(PFLocaliserBase):
         :Return:
             | (geometry_msgs.msg.PoseArray) poses of the particles
         """
-        pass
-        testPose = Pose()
-        testPose.position.x = 1
-        testPose.position.y = 1
-
-        testPose2 = Pose()
-        testPose2.position.x = 10
-        testPose2.position.y = 10
-
-        poses = []
-        poses.append(testPose)
-        poses.append(testPose2)
-
-        self.particlecloud.poses = poses
-
-        return self.particlecloud
+        # pass
+        # testPose = Pose()
+        # testPose.position.x = 1
+        # testPose.position.y = 1
+        #
+        # testPose2 = Pose()
+        # testPose2.position.x = 10
+        # testPose2.position.y = 10
+        #
+        # poses = []
+        # poses.append(testPose)
+        # poses.append(testPose2)
+        #
+        # self.particlecloud.poses = poses
+        #
+        # return self.particlecloud
 
 
 
@@ -96,7 +114,8 @@ class PFLocaliser(PFLocaliserBase):
             | scan (sensor_msgs.msg.LaserScan): laser scan to use for update
 
          """
-        pass
+
+        return []
 
 
     # DOBRI
@@ -117,10 +136,9 @@ class PFLocaliser(PFLocaliserBase):
             | (geometry_msgs.msg.Pose) robot's estimated pose.
          """
 
-        testPose = pose()
-        pose.position.x = 5
-        pose.position.y = 5
 
-        return testPose
+        result = Pose()
+
+        return result
 
 

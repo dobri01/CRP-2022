@@ -25,6 +25,10 @@ class PFLocaliser(PFLocaliserBase):
             self.ODOM_DRIFT_NOISE = ???? # Odometry model y axis (side-to-side) noise
         """
 
+        self.ODOM_ROTATION_NOISE = 1 # Odometry model rotation noise
+        self.ODOM_TRANSLATION_NOISE = 1 # Odometry model x axis (forward) noise
+        self.ODOM_DRIFT_NOISE = 1 # Odometry model y axis (side-to-side) noise
+
 
         # ----- Sensor model parameters
         self.NUMBER_PREDICTED_READINGS = 20     # Number of readings to predict
@@ -35,8 +39,6 @@ class PFLocaliser(PFLocaliserBase):
     def initialise_particle_cloud(self, initialpose):
 
 
-        # getting start with a big spread cloud
-        # fill the map with dots using a distribution
         # return the dots
         # map is occupancy_map a grid of all locations
 

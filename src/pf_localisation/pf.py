@@ -88,6 +88,22 @@ class PFLocaliser(PFLocaliserBase):
     #resample w/ new poses (resampling wheel)
     #add noise to new samples
     #replace old cloud w/ new one.
+    
+    #Resampling wheel:
+    	print(particlecloud)
+    	S2 = []
+    	weights = self.sensor_model.get_weight(particlecloud)
+    	M = len(particlecloud)
+    	u = 0
+    	index = random.randint(1,M)
+    	while len(S2) < len(particlecloud)
+    		u = u + random.uniform(0,2*max(weights))
+    		while weights[index] < u # while u > weight of current index
+    			u = u - weights[index]
+    			index = (index + 1)
+    		S2.append(particlecloud[index])
+    	particlecloud = S2
+    	print(particlecloud)
         """
         This should use the supplied laser scan to update the current
         particle cloud. i.e. self.particlecloud should be updated.

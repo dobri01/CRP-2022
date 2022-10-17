@@ -80,6 +80,12 @@ class PFLocaliser(PFLocaliserBase):
 
     # JOSH
     def update_particle_cloud(self, scan):
+    
+    #samples w/ pose in self.particlecloud
+    #get weight of each pose - self.sensor_model.get_weight()
+    #resample w/ new poses (resampling wheel)
+    #add noise to new samples
+    #replace old cloud w/ new one.
         """
         This should use the supplied laser scan to update the current
         particle cloud. i.e. self.particlecloud should be updated.

@@ -2,11 +2,12 @@ from geometry_msgs.msg import Pose, PoseArray, Quaternion
 from .pf_base import PFLocaliserBase
 import math
 import rospy
+from tf.msg import tfMessage
 
 from .util import rotateQuaternion, getHeading
 import random
 
-from time import time
+import time
 
 
 # test push with pycharm
@@ -25,9 +26,9 @@ class PFLocaliser(PFLocaliserBase):
             self.ODOM_DRIFT_NOISE = ???? # Odometry model y axis (side-to-side) noise
         """
 
-        self.ODOM_ROTATION_NOISE = 0.05  # Odometry model rotation noise
-        self.ODOM_TRANSLATION_NOISE = 0.05  # Odometry model x axis (forward) noise
-        self.ODOM_DRIFT_NOISE = 0.05 # Odometry model y axis (side-to-side) noise
+        self.ODOM_ROTATION_NOISE = 45
+        self.ODOM_TRANSLATION_NOISE = 1
+        self.ODOM_DRIFT_NOISE = 1
 
         # ----- Sensor model parameters
         self.NUMBER_PREDICTED_READINGS = 20  # Number of readings to predict
@@ -91,7 +92,18 @@ class PFLocaliser(PFLocaliserBase):
         # return self.particlecloud
 
     # JOSH
+
+
     def update_particle_cloud(self, scan):
+
+        # self.display("Called particle filter")
+        # #
+        # self.display("\n\n\n\n\n\n\n\n\n\n\n\n\n")
+        # self.display("INITIAL PARTICLE CLOUD")
+        # self.display(self.particlecloud.poses)
+        # self.display("\n\n\n\n\n\n\n\n\n\n\n\n\n")
+
+
 
         #    # samples w/ pose in self.particlecloud
         #    # get weight of each pose - self.sensor_model.get_weight()
@@ -134,45 +146,59 @@ class PFLocaliser(PFLocaliserBase):
         #
         # systematic resampling algorithm
 
-
         amount_of_poses = len(self.particlecloud.poses)
         commulutive_weights = []
 
         weights = []
 
         for i in range(amount_of_poses):
-           pose = self.particlecloud.poses[i]
-           weights.append(self.sensor_model.get_weight(scan, pose))
+            pose = self.particlecloud.poses[i]
+            weights.append(self.sensor_model.get_weight(scan, pose))
+
+        self.display("WEIGHTS")
+        self.display(weights)
 
         commulutive_weights.append(weights[0])
         for x in range(1, self.NUMBER_PREDICTED_READINGS):
-           commulutive_weights.append(commulutive_weights[x - 1] + weights[x])
+            commulutive_weights.append(commulutive_weights[x - 1] + weights[x])
 
         threshold = random.uniform(0, 1 / self.NUMBER_PREDICTED_READINGS)
 
         i = 0
 
-
-        cloud_to_return = []
-
+        poses_to_return = []
 
         for count in range(0, self.NUMBER_PREDICTED_READINGS):
-           while threshold > commulutive_weights[i]:
-               i = i + 1
-           # add noise
-           self.particlecloud.poses[i].position.x = random.gauss(self.particlecloud.poses[i].position.x, (
-                       self.particlecloud.poses[i].position.x * self.ODOM_DRIFT_NOISE))
-           self.particlecloud.poses[i].position.y = random.gauss(self.particlecloud.poses[i].position.y, (
-                       self.particlecloud.poses[i].position.y * self.ODOM_TRANSLATION_NOISE))
-           self.particlecloud.poses[i].orientation = rotateQuaternion(self.particlecloud.poses[i].orientation,
-                                                                      math.radians(
-                                                                          random.uniform(-self.ODOM_ROTATION_NOISE,
-                                                                                         self.ODOM_ROTATION_NOISE)))
+            while threshold > commulutive_weights[i]:
+                i = i + 1
+            # add noise
+            noisy_pose = Pose()
+            noisy_pose.position.x = random.gauss(self.particlecloud.poses[i].position.x,
+                    (self.particlecloud.poses[i].position.x * self.ODOM_DRIFT_NOISE))
+            noisy_pose.position.y = random.gauss(self.particlecloud.poses[i].position.y,
+                    (self.particlecloud.poses[i].position.y * self.ODOM_TRANSLATION_NOISE))
+            noisy_pose.orientation = rotateQuaternion(self.particlecloud.poses[i].orientation,
+                    math.radians(random.uniform(-self.ODOM_ROTATION_NOISE, self.ODOM_ROTATION_NOISE)))
 
-           cloud_to_return.append(self.particlecloud.poses[i])
-           threshold = threshold + 1 / self.NUMBER_PREDICTED_READINGS
+            poses_to_return.append(noisy_pose)
+            threshold = threshold + (1 / self.NUMBER_PREDICTED_READINGS)
 
-        self.particlecloud.poses = cloud_to_return
+
+        # self.display("\n\n\n\n\n\n\n\n\n\n\n\n\n")
+        # self.display("CLOUD AFTER ALG")
+        # self.display(cloud_to_return)
+        # self.display("\n\n\n\n\n\n\n\n\n\n\n\n\n")
+
+
+        cloud_to_return = PoseArray()
+        cloud_to_return.poses.extend(poses_to_return)
+
+        self.particlecloud = cloud_to_return
+
+
+    def display(self, message):
+        rospy.loginfo(message)
+
 
         #
         # # samples w/ pose in self.particlecloud
@@ -203,37 +229,36 @@ class PFLocaliser(PFLocaliserBase):
         #     | scan (sensor_msgs.msg.LaserScan): laser scan to use for update
         #  """
 
-    # DOBRI
-	def estimate_pose(self):
-		
-		x = 0
-		y = 0
-		z = 0
-		orx = 0
-		ory = 0
-		orz = 0
-		orw = 0
-		count = len(self.particlecloud.poses)
+        # DOBRI
+    def estimate_pose(self):
 
-		for particle in self.particlecloud.poses:
-			x += particle.position.x
-			y += particle.position.y
-			z += particle.position.z
-			orx += particle.orientation.x
-			ory += particle.orientation.y
-			orz += particle.orientation.z
-			orw += particle.orientation.w
+        x = 0
+        y = 0
+        z = 0
+        orx = 0
+        ory = 0
+        orz = 0
+        orw = 0
+        count = len(self.particlecloud.poses)
 
+        for particle in self.particlecloud.poses:
+            x += particle.position.x
+            y += particle.position.y
+            z += particle.position.z
+            orx += particle.orientation.x
+            ory += particle.orientation.y
+            orz += particle.orientation.z
+            orw += particle.orientation.w
 
-		result = Pose()
+        result = Pose()
 
-		result.position.x = x/count
-		result.position.y = y/count
-		result.position.z = z/count
+        result.position.x = x / count
+        result.position.y = y / count
+        result.position.z = z / count
 
-		result.orientation.x = orx/count
-		result.orientation.y = ory/count
-		result.orientation.z = orz/count
-		result.orientation.w = orw/count
+        result.orientation.x = orx / count
+        result.orientation.y = ory / count
+        result.orientation.z = orz / count
+        result.orientation.w = orw / count
 
-		return result
+        return result

@@ -204,22 +204,36 @@ class PFLocaliser(PFLocaliserBase):
         #  """
 
     # DOBRI
-    def estimate_pose(self):
-        """
-        This should calculate and return an updated robot pose estimate based
-        on the particle cloud (self.particlecloud).
-        Create new estimated pose, given particle cloud
-        E.g. just average the location and orientation values of each of
-        the particles and return this.
-        Better approximations could be made by doing some simple clustering,
-        e.g. taking the average location of half the particles after
-        throwing away any which are outliers
-        :Return:
-            | (geometry_msgs.msg.Pose) robot's estimated pose.
-         """
+	def estimate_pose(self):
+		
+		x = 0
+		y = 0
+		z = 0
+		orx = 0
+		ory = 0
+		orz = 0
+		orw = 0
+		count = len(self.particlecloud.poses)
 
-        pass
+		for particle in self.particlecloud.poses:
+			x += particle.position.x
+			y += particle.position.y
+			z += particle.position.z
+			orx += particle.orientation.x
+			ory += particle.orientation.y
+			orz += particle.orientation.z
+			orw += particle.orientation.w
 
-        result = Pose()
 
-        return result
+		result = Pose()
+
+		result.position.x = x/count
+		result.position.y = y/count
+		result.position.z = z/count
+
+		result.orientation.x = orx/count
+		result.orientation.y = ory/count
+		result.orientation.z = orz/count
+		result.orientation.w = orw/count
+
+		return result

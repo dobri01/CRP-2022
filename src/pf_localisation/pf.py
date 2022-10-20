@@ -52,27 +52,23 @@ class PFLocaliser(PFLocaliserBase):
         poseArray = PoseArray()
 
         temp = []
-        
 
+        self.display("called initiialise")
         for count in range(self.NUMBER_PREDICTED_READINGS):
             particle = Pose()
-            particle.position.x = random.gauss(initialpose.pose.pose.position.x, noise) #mean x input dot on map + stand deviation of noise
-            while (2 > particle.position.x) or (29 < particle.position.x):
-            	particle.position.x = random.gauss(initialpose.pose.pose.position.x, noise)
-            	
-            #particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
-            #while (particle.position.y < -0.958*(particle.position.x) + 17.766) or (particle.position.y < 1.22*(particle.position.x) -25) or (particle.position.y > 0.84395*(particle.position.x) + 17.125) or (particle.position.y > -1.0365*(particle.position.x)+44.646):
-            	#particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
-            	
-            	
-            	
-            	
-		while ((particle.position.y > -1.0365 * particle.position.x + 44.696) or (particle.position.y > 0.84395 * particle.position.x + 18.125) or (particle.position.y < -0.958 * particle.position.x + 17.766) or (particle.position.y < 1.22 * particle.position.x - 25)):
-		particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise
-			
-		
+            particle.position.x = random.gauss(initialpose.pose.pose.position.x,
+                                               noise)  # mean x input dot on map + stand deviation of noise
+            # while (-14 > particle.position.x) or (13 < particle.position.x):
+            particle.position.x = random.gauss(initialpose.pose.pose.position.x, noise)
 
-            particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation, math.radians(random.gauss(0,12)))
+            # while   ((particle.position.y > -1.0365 * (particle.position.x + 16) + 27.696) or (
+            #     particle.position.y > 0.84395 * (particle.position.x + 16) + 2.125) or (
+            #            particle.position.y < -0.958 * (particle.position.x + 16) + 2.766) or (
+            #            particle.position.y < 1.22 * (particle.position.x + 16)  - 40)):
+            particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
+
+            particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation,
+                                                    math.radians(random.gauss(0, 12)))
 
             temp.append(particle)
 
@@ -223,9 +219,6 @@ class PFLocaliser(PFLocaliserBase):
         orz = 0
         orw = 0
         count = len(self.particlecloud.poses)
-
-
-
 
         for particle in self.particlecloud.poses:
             x += particle.position.x

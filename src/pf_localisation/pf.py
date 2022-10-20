@@ -1,4 +1,4 @@
-from geometry_msgs.msg import Pose, PoseArray, Quaternion
+from geometry_msgs.msg import Pose, PoseArray, Quaternion, Point
 from .pf_base import PFLocaliserBase
 import math
 import rospy
@@ -39,7 +39,39 @@ class PFLocaliser(PFLocaliserBase):
         self.NUMBER_PREDICTED_READINGS = 100  # Number of readings to predict
 
     # NIAM + TOM
+
+
     def initialise_particle_cloud(self, initialpose):
+        # return the dots
+        # map is occupancy_map a grid of all locations
+
+        # how do we spread it out on a map we don't know
+
+        # for now set the noise/ standard deviation to 1
+
+        map = self.create_map_states()
+
+        noise = 10
+
+        poseArray = PoseArray()
+
+        temp = []
+
+        self.display("called initiialise")
+        for count in range(self.NUMBER_PREDICTED_READINGS):
+            particle = Pose()
+            #pick random element from list
+            position = random.choice(map)
+            self.display(position.x)
+            particle.position.x = position.x
+            particle.position.y = position.y
+            temp.append(particle)
+
+        poseArray.poses = temp
+
+        return poseArray
+
+    def initialise_particle_cloud2(self, initialpose):
 
         # return the dots
         # map is occupancy_map a grid of all locations
@@ -56,20 +88,18 @@ class PFLocaliser(PFLocaliserBase):
         self.display("called initiialise")
         for count in range(self.NUMBER_PREDICTED_READINGS):
             particle = Pose()
-            particle.position.x = random.gauss(initialpose.pose.pose.position.x,
-                                               noise)  # mean x input dot on map + stand deviation of noise
-            # while (-14 > particle.position.x) or (13 < particle.position.x):
             particle.position.x = random.gauss(initialpose.pose.pose.position.x, noise)
+            while (-14 > particle.position.x) or (13 < particle.position.x):
+                particle.position.x = random.gauss(initialpose.pose.pose.position.x, noise)
 
-            # while   ((particle.position.y > -1.0365 * (particle.position.x + 16) + 27.696) or (
-            #     particle.position.y > 0.84395 * (particle.position.x + 16) + 2.125) or (
-            #            particle.position.y < -0.958 * (particle.position.x + 16) + 2.766) or (
-            #            particle.position.y < 1.22 * (particle.position.x + 16)  - 40)):
             particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
+            while ((particle.position.y < -0.958 * (particle.position.x + 16) + 2.766) or (
+                    particle.position.y < 1.22 * (particle.position.x + 16) - 40) or (
+                    particle.position.y > 0.84395 * (particle.position.x + 16) + 2.125) or (
+                    particle.position.y > -1.0365 * (particle.position.x + 16) + 27.646)):
+                particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
 
-            particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation,
-                                                    math.radians(random.gauss(0, 12)))
-
+            particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation, random.uniform(0, 2 * math.pi))
             temp.append(particle)
 
         poseArray.poses = temp
@@ -95,6 +125,22 @@ class PFLocaliser(PFLocaliserBase):
     def listener(self):
         # waits until message to move is received
         rospy.wait_for_message("/cmd_vel", Twist, 100)
+
+    def create_map_states(self):
+        """Create list of set of points that lie in the map"""
+        index = 0
+        map_states = []
+        for h in range(0, self.sensor_model.map_height):
+            for w in range(0, self.sensor_model.map_width):
+                if (self.sensor_model.map_data[index] >= 0.0):
+                    p = Point()
+                    p.x = w * self.sensor_model.map_resolution + self.occupancy_map.info.origin.position.x
+                    p.y = h * self.sensor_model.map_resolution + self.occupancy_map.info.origin.position.y
+                    p.z = 0
+                    map_states.append(p)
+                index += 1
+
+        return map_states
 
     def update_particle_cloud(self, scan):
         self.listener()

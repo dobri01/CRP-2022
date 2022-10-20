@@ -65,6 +65,7 @@ class PFLocaliser(PFLocaliserBase):
             self.display(position.x)
             particle.position.x = position.x
             particle.position.y = position.y
+            particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation, random.uniform(0, 2 * math.pi))
             temp.append(particle)
 
         poseArray.poses = temp

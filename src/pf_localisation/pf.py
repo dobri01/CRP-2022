@@ -60,20 +60,17 @@ class PFLocaliser(PFLocaliserBase):
             while (2 > particle.position.x) or (29 < particle.position.x):
             	particle.position.x = random.gauss(initialpose.pose.pose.position.x, noise)
             	
-            #particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
-            #while (particle.position.y < -0.958*(particle.position.x) + 17.766) or (particle.position.y < 1.22*(particle.position.x) -25) or (particle.position.y > 0.84395*(particle.position.x) + 17.125) or (particle.position.y > -1.0365*(particle.position.x)+44.646):
-            	#particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
+            particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
+            while (particle.position.y < -0.958*(particle.position.x) + 17.766) or (particle.position.y < 1.22*(particle.position.x) -25) or (particle.position.y > 0.84395*(particle.position.x) + 17.125) or (particle.position.y > -1.0365*(particle.position.x)+44.646):
+            	particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
             	
             	
             	
-            	
-		while ((particle.position.y > -1.0365 * particle.position.x + 44.696) or (particle.position.y > 0.84395 * particle.position.x + 18.125) or (particle.position.y < -0.958 * particle.position.x + 17.766) or (particle.position.y < 1.22 * particle.position.x - 25)):
-		particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise
+            while ((particle.position.y > -1.0365 * particle.position.x + 44.696) or (particle.position.y > 0.84395 * particle.position.x + 18.125) or (particle.position.y < -0.958 * particle.position.x + 17.766) or (particle.position.y < 1.22 * particle.position.x - 25)):
+             	particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
 			
-		
 
-            particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation, math.radians(random.gauss(0,12)))
-
+            particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation,random.uniform(0, 2 * math.pi))
             temp.append(particle)
 
         poseArray.poses = temp

@@ -13,12 +13,6 @@ import numpy.ma as ma
 
 from geometry_msgs.msg import Twist
 
-from queue import PriorityQueue
-
-"""
-kflddkfls
-
-"""
 
 # Data processing
 import pandas as pd
@@ -27,26 +21,6 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
-
-
-
-
-# #
-# # np.random.bit_generator = np.super()._bit_generator
-#
-# # Visualization
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# # Dataset
-# from sklearn import datasets
-# # Dimensionality reduction
-# from sklearn.decomposition import PCA
-# # Modeling
-# from sklearn.cluster import KMeans
-# import scipy.cluster.hierarchy as hier
-# from sklearn.mixture import GaussianMixture
-# # Number of clusters
-# from sklearn.metrics import silhouette_score
 
 
 # test push with pycharm
@@ -66,20 +40,17 @@ class PFLocaliser(PFLocaliserBase):
             self.ODOM_DRIFT_NOISE = ???? # Odometry model y axis (side-to-side) noise
         """
 
-        self.ODOM_ROTATION_NOISE = 45
+        self.ODOM_ROTATION_NOISE = 5
         self.ODOM_TRANSLATION_NOISE = 0.004
         self.ODOM_DRIFT_NOISE = 0.004
 
         # ----- Sensor model parameters
         self.NUMBER_PREDICTED_READINGS = 100  # Number of readings to predict
 
-        self.MY_MAP_STATES = []
-
     # NIAM + TOM
 
-    def initialise_particle_cloud3(self, initialpose):
 
-        '''map data cloud'''
+    def initialise_particle_cloud3(self, initialpose):
         # return the dots
         # map is occupancy_map a grid of all locations
 
@@ -89,30 +60,28 @@ class PFLocaliser(PFLocaliserBase):
 
         map = self.create_map_states()
 
+        noise = 10
+
         poseArray = PoseArray()
 
         temp = []
 
         self.display("called initiialise")
         for count in range(self.NUMBER_PREDICTED_READINGS):
-            temp.append(self.pick_from_map())
+            particle = Pose()
+            #pick random element from list
+            position = random.choice(map)
+            self.display(position.x)
+            particle.position.x = position.x
+            particle.position.y = position.y
+            particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation, random.uniform(0, 2 * math.pi))
+            temp.append(particle)
 
         poseArray.poses = temp
 
         return poseArray
 
-    def pick_from_map(self):
-        particle = Pose()
-        # pick random element from list
-        position = random.choice(self.MY_MAP_STATES)
-        self.display(position.x)
-        particle.position.x = position.x
-        particle.position.y = position.y
-        return particle
-
     def initialise_particle_cloud2(self, initialpose):
-
-        '''particle cloud with the graph lines we must stay within'''
 
         # return the dots
         # map is occupancy_map a grid of all locations
@@ -136,8 +105,8 @@ class PFLocaliser(PFLocaliserBase):
             particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
             while ((particle.position.y < -0.958 * (particle.position.x + 16) + 2.766) or (
                     particle.position.y < 1.22 * (particle.position.x + 16) - 40) or (
-                           particle.position.y > 0.84395 * (particle.position.x + 16) + 2.125) or (
-                           particle.position.y > -1.0365 * (particle.position.x + 16) + 27.646)):
+                    particle.position.y > 0.84395 * (particle.position.x + 16) + 2.125) or (
+                    particle.position.y > -1.0365 * (particle.position.x + 16) + 27.646)):
                 particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
 
             particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation, random.uniform(0, 2 * math.pi))
@@ -147,12 +116,29 @@ class PFLocaliser(PFLocaliserBase):
 
         return poseArray
 
+        """
+        Set particle cloud to initialpose plus noise
+
+        Called whenever an initialpose message is received (to change the
+        starting location of the robot), or a new occupancy_map is received.
+        self.particlecloud can be initialised here. Initial pose of the robot
+        is also set here.
+
+        :Args:
+            | initialpose: the initial pose estimate
+        :Return:
+            | (geometry_msgs.msg.PoseArray) poses of the particles
+        """
+
     def initialise_particle_cloud(self, initialpose):
 
-        '''particle cloud we used initially'''
+        # return the dots
+        # map is occupancy_map a grid of all locations
 
-        self.MY_MAP_STATES = self.create_map_states()
-        noise = 0.2
+        # how do we spread it out on a map we don't know
+
+        # for now set the noise/ standard deviation to 1
+        noise = 1
 
         poseArray = PoseArray()
 
@@ -164,27 +150,12 @@ class PFLocaliser(PFLocaliserBase):
             particle.position.x = random.gauss(initialpose.pose.pose.position.x, noise)
 
             particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
-
             particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation, random.uniform(0, 2 * math.pi))
             temp.append(particle)
 
         poseArray.poses = temp
 
         return poseArray
-
-    """
-    Set particle cloud to initialpose plus noise
-
-    Called whenever an initialpose message is received (to change the
-    starting location of the robot), or a new occupancy_map is received.
-    self.particlecloud can be initialised here. Initial pose of the robot
-    is also set here.
-
-    :Args:
-        | initialpose: the initial pose estimate
-    :Return:
-        | (geometry_msgs.msg.PoseArray) poses of the particles
-    """
 
     # JOSH
 
@@ -209,63 +180,92 @@ class PFLocaliser(PFLocaliserBase):
         return map_states
 
     def update_particle_cloud(self, scan):
-
-        # 5th of them randomly around
-
         self.listener()
+
+        #    # samples w/ pose in self.particlecloud
+        #    # get weight of each pose - self.sensor_model.get_weight()
+        #    # resample w/ new poses (resampling wheel)
+        #    # add noise to new samples
+        #    # replace old cloud w/ new one.
+        #    """
+        #    #Resampling wheel:
+        #
+        #
+        # print(self.particlecloud)
+        #    self.particlecloud.poses
+        new_particle_cloud = []
+        #
+        #    #to get the individual poses weights
+        #
+        #    weights = []
+        #    for i in range(amount_of_poses):
+        #        pose = self.particlecloud.poses[i]
+        #        weights.append(self.sensor_model.get_weight(pose))
+        #
+        #
+        #    # self.sensor_model.get_weight(scan[i], pose[i]) compares scan to the pose
+        #
+        #
+        #
+
+        # cloud = PoseArray()
+        # cloud = self.particlecloud
+        # amount_of_poses = len(cloud.poses)
+        # commulutive_weights = []
+        #
+        # weights = []
+        #
+        # new_particle_cloud = []
+        #
+        # for i in range(amount_of_poses):
+        #     pose = cloud.poses[i]
+        #     weights.append(self.sensor_model.get_weight(scan, pose))
+        #
+        # u = 0
+        # index = random.randint(1,amount_of_poses)
+        # while len(new_particle_cloud) < amount_of_poses:
+        #    u = u + random.uniform(0,2*max(weights))
+        #    while weights[index] < u: # while u > weight of current index
+        #        u = u - weights[index]
+        #        index = ((index + 1)) % self.NUMBER_PREDICTED_READINGS
+        #    new_particle_cloud.append(cloud.poses[index])
+        #
+        # returning_particle_cloud = PoseArray()
+        # returning_particle_cloud.poses = new_particle_cloud
+        #
+        # self.particlecloud = returning_particle_cloud
+        # #    """
+        # #
+        # # systematic resampling algorithm
 
         cloud = PoseArray()
         cloud = self.particlecloud
+        amount_of_poses = len(cloud.poses)
         commulutive_weights = []
 
         weights = []
         weight_sum = 0
 
-        weight_poses = []
-
-        # create weight pose array and also add weight to the priority queue
-        queue = PriorityQueue()
-        for j in range(self.NUMBER_PREDICTED_READINGS):
-            pose = cloud.poses[j]
+        for i in range(amount_of_poses):
+            pose = cloud.poses[i]
             weight = self.sensor_model.get_weight(scan, pose)
-            weight_pose = (weight, (pose.position.x,))
-            weight_poses.append(weight_pose)
-            queue.put(weight_pose)
             weight_sum += weight
+            weights.append(weight)
 
-        number_of_weights_to_remove = int(1 / 20 * self.NUMBER_PREDICTED_READINGS)
-        number_of_poses = self.NUMBER_PREDICTED_READINGS - number_of_weights_to_remove
-
-        # get poses with smallest weights
-        # and remove those poses from weight list
-        # also makes new random poses to fill these gaps
-
-        poses_to_return = []
-
-        for k in range(number_of_weights_to_remove):
-            combination = queue.get()
-            weight_sum -= combination[0]
-            weight_poses.remove(combination)
-            poses_to_return.append(self.pick_from_map())
-
-        # for i in range(self.NUMBER_PREDICTED_READINGS):
-        #     pose = cloud.poses[i]
-        #     weight = self.sensor_model.get_weight(scan, pose)
-        #     weight_sum += weight
-        #     weights.append(weight)
-
-        commulutive_weights.append(weight_poses[0][0] / weight_sum)
-
-        # remove a 5th of the least most likely positions
-        for x in range(1, number_of_poses):
-            weight_by_sum = weight_poses[x][0] / weight_sum
+        commulutive_weights.append(weights[0] / weight_sum)
+        # self.display(weights[0])
+        for x in range(1, self.NUMBER_PREDICTED_READINGS):
+            weight_by_sum = weights[x] / weight_sum
+            self.display("weightbysum for x = " + str(x) + "\n" + str(weight_by_sum) + "\n")
             commulutive_weights.append(commulutive_weights[x - 1] + weight_by_sum)
 
-        threshold = random.uniform(0, 1 / number_of_poses)
+        threshold = random.uniform(0, 1 / self.NUMBER_PREDICTED_READINGS)
 
         i = 0
 
-        for count in range(0, number_of_poses):
+        poses_to_return = []
+
+        for count in range(0, self.NUMBER_PREDICTED_READINGS):
             while threshold > commulutive_weights[i]:
                 i = i + 1
             # add noise
@@ -279,7 +279,7 @@ class PFLocaliser(PFLocaliserBase):
                                                                                   self.ODOM_ROTATION_NOISE)))
 
             poses_to_return.append(noisy_pose)
-            threshold = threshold + (1 / number_of_poses)
+            threshold = threshold + (1 / self.NUMBER_PREDICTED_READINGS)
 
         # self.display(poses_to_return)
         cloud_to_return = PoseArray()
@@ -325,6 +325,8 @@ class PFLocaliser(PFLocaliserBase):
 
         return result
 
+
+
     def convert(self, lst):
         xs = []
         ys = []
@@ -344,8 +346,6 @@ class PFLocaliser(PFLocaliserBase):
                 biggest_number_index[1] = i
 
         return biggest_number_index
-
-
 
     def estimate_pose(self):
 

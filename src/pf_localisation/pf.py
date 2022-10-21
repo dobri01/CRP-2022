@@ -57,15 +57,13 @@ class PFLocaliser(PFLocaliserBase):
         super(PFLocaliser, self).__init__()
 
         # ----- Set motion model parameters
-        # ALL NEED TO HAVE A THINK ABOUT THESE
+
         """
-            self.ODOM_ROTATION_NOISE = ???? # Odometry model rotation noise
-            self.ODOM_TRANSLATION_NOISE = ???? # Odometry model x axis (forward) noise
-            self.ODOM_DRIFT_NOISE = ???? # Odometry model y axis (side-to-side) noise
+        These we had to tweak, with the noise to big the cloud was too spread to be useful
         """
 
         self.ODOM_ROTATION_NOISE = 45
-        self.ODOM_TRANSLATION_NOISE = 0.004
+        self.ODOM_TRANSLATION_NOISE = 0.04
         self.ODOM_DRIFT_NOISE = 0.004
 
         # ----- Sensor model parameters
@@ -77,16 +75,7 @@ class PFLocaliser(PFLocaliserBase):
 
     def initialise_particle_cloud3(self, initialpose):
 
-        '''map data cloud'''
-        # return the dots
-        # map is occupancy_map a grid of all locations
-
-        # how do we spread it out on a map we don't know
-
-        # for now set the noise/ standard deviation to 1
-
-        map = self.create_map_states()
-
+        '''picks random locations throughout the map'''
         poseArray = PoseArray()
 
         temp = []
@@ -103,7 +92,6 @@ class PFLocaliser(PFLocaliserBase):
         particle = Pose()
         # pick random element from list
         position = random.choice(self.MY_MAP_STATES)
-        # self.display(position.x)
         particle.position.x = position.x
         particle.position.y = position.y
         return particle
@@ -150,6 +138,10 @@ class PFLocaliser(PFLocaliserBase):
         '''particle cloud we used initially'''
 
         self.MY_MAP_STATES = self.create_map_states()
+        """
+        this noise had to be reduced right down because our estimation could not handle how spread out the initial
+        cloud was
+        """
         noise = 0.2
 
         poseArray = PoseArray()
@@ -186,7 +178,7 @@ class PFLocaliser(PFLocaliserBase):
     # JOSH
 
     def listener(self):
-        # waits until message to move is received
+        '''waits until message to move is received'''
         rospy.wait_for_message("/cmd_vel", Twist, 100)
 
     def create_map_states(self):
@@ -219,8 +211,11 @@ class PFLocaliser(PFLocaliserBase):
         weight_sum = 0
 
         weight_poses = []
+        # wieghts and their corrosponding poses stored together
 
         # create weight pose array and also add weight to the priority queue
+        # had to use weightsum because we must normalise the wieghts because they are not between 1 and 0 initially
+        #
         queue = PriorityQueue()
         for j in range(self.NUMBER_PREDICTED_READINGS):
             pose = cloud.poses[j]
@@ -230,13 +225,19 @@ class PFLocaliser(PFLocaliserBase):
             queue.put(weight_pose)
             weight_sum += weight
 
-        number_of_weights_to_remove = int(0 * self.NUMBER_PREDICTED_READINGS)
+        # in order to spread out some random particles we must first remove the least probable particles in the cloud
+        # priority queue used to easily find the particles with the lowest weight
+
+        # normally a fraction so we acn have 1/5 of the particles to be randomly distributed for example
+        # does not work without better estimation however
+        fraction_to_remove = 0
+
+        number_of_weights_to_remove = int(fraction_to_remove * self.NUMBER_PREDICTED_READINGS)
         number_of_poses = self.NUMBER_PREDICTED_READINGS - number_of_weights_to_remove
 
         # get poses with smallest weights
         # and remove those poses from weight list
         # also makes new random poses to fill these gaps
-
         poses_to_return = []
 
         for k in range(number_of_weights_to_remove):
@@ -250,15 +251,11 @@ class PFLocaliser(PFLocaliserBase):
 
             poses_to_return.append(part)
 
-        # for i in range(self.NUMBER_PREDICTED_READINGS):
-        #     pose = cloud.poses[i]
-        #     weight = self.sensor_model.get_weight(scan, pose)
-        #     weight_sum += weight
-        #     weights.append(weight)
-
+        #
         commulutive_weights.append(weight_poses[0][0] / weight_sum)
 
-        # remove a 5th of the least most likely positions
+        # stochastic universal sampling algorithm
+
         for x in range(1, number_of_poses):
             weight_by_sum = weight_poses[x][0] / weight_sum
             commulutive_weights.append(commulutive_weights[x - 1] + weight_by_sum)
@@ -283,7 +280,6 @@ class PFLocaliser(PFLocaliserBase):
             poses_to_return.append(noisy_pose)
             threshold = threshold + (1 / number_of_poses)
 
-        # self.display(poses_to_return)
         cloud_to_return = PoseArray()
         cloud_to_return.poses.extend(poses_to_return)
 
@@ -357,8 +353,9 @@ class PFLocaliser(PFLocaliserBase):
 
         # Create an empty dictionary for the Silhouette score
         s_score = {}
-        # Loop through the number of clusters
 
+        # Silhouette score k selection algorithm
+        # Loop through the number of clusters
         biggest = -1
         best_k = -1
         i = 2
@@ -369,14 +366,12 @@ class PFLocaliser(PFLocaliserBase):
             classes = kmeans.predict(particle_dataframe)
             # Calculate Silhouette score
             s_score[i] = (silhouette_score(particle_dataframe, classes))
-            # Print the Silhouette score for each cluster number
+            # Pfind k value with biggest score
             if float(s_score[i]) > biggest:
                 biggest = float(s_score[i])
                 best_k = i
 
             print(f'The silhouette score for {i} clusters is {s_score[i]:.3f}')
-
-        print(best_k)
 
         # Kmeans model
         kmeans = KMeans(best_k, random_state=42)
@@ -387,57 +382,23 @@ class PFLocaliser(PFLocaliserBase):
         # Check the distribution
         particle_dataframe['y_kmeans'].value_counts()
 
-        # Hierachical clustering model
-        # hc = AgglomerativeClustering(i)
-        # # Fit and predict on the data
-        # y_hc = hc.fit_predict(particle_dataframe)
-
-        # self.display(y_hc)
-
-        # Save the predictions as a column
-        # particle_dataframe['y_kmeans'] = y_kmeans
-        # Check the distribution
-        # self.display(self.particlecloud.poses)
-        # self.display("47832476294763924735635628562386582365283659238659238467")
-        # self.display(particle_dataframe.info())
-
-        # self.display(particle_dataframe[particle_dataframe.y_hc == 0])
-        # self.display(particle_dataframe[particle_dataframe.y_hc == 1])
-
         products_list = particle_dataframe.values.tolist()
-        self.display(products_list)
-        clusters = 3
 
         totals = list(particle_dataframe['y_kmeans'].value_counts())
 
         biggest_number_index = self.biggest_number_index(totals)
 
-        # self.display(biggest_number_index[1])
-
-        # get particles in biggest cluster
-        # self.display("sdk")
-        # self.display(list(particle_dataframe[particle_dataframe.y_hc == biggest_number_index[1]]))
-
-        # particles_to_average = [position for position in products_list if position[2] == biggest_number_index[1]]
-
         indexes_to_average = []
-
-        # for p in range(self.NUMBER_PREDICTED_READINGS):
-        #     if products_list[p][2] == biggest_number_index[1]:
-        #         indexes_to_average.append(p)
-
-        # retrieve each list of results from particlelist
-
-        # store then with their index
-
         list_list = []
 
-        # calculate standard deviation of plots and try that
+        # plan = calculate standard deviation of plots and try that as a measure of best cluster
+
+        # set up list to hold the array of x values and y values corresponding to a particular cluster along
+
+        # not working currently but think I've thought ofd a solution commenting this so this wil be updated
 
         for w in range(best_k):
             list_list.append(([[], []], []))
-
-        self.display(list_list)
 
         for x in range(self.NUMBER_PREDICTED_READINGS):
             list_list[int(products_list[x][2])][0][0].append(products_list[x][0])
@@ -457,7 +418,6 @@ class PFLocaliser(PFLocaliserBase):
             numpydev = np.array(just_positions[f][0])
             devs.append(np.std(numpydev))
 
-
         biggest = -1
         biggest_index = -1
         for m in range(len(devs)):
@@ -468,63 +428,6 @@ class PFLocaliser(PFLocaliserBase):
         for z in range(self.NUMBER_PREDICTED_READINGS):
             if products_list[z][2] == biggest_index:
                 indexes_to_average.append(z)
-
-
-
-
-
-
-
-
-
-
-
-
-        # a = np.array([[1, 2], [3, 4]])
-        # self.display(np.std(a))
-
-
-        # self.display("\n" + str(dev) + "\n")
-
-
-
-
-
-
-
-
-
-
-        # particles_to_average = [position for position in products_list if position[2] == biggest_number_index[1]]
-
-        # x = 0
-        # y = 0
-        # z = 0
-        # orx = 0
-        # ory = 0
-        # orz = 0
-        # orw = 0
-        # count = len(particles_to_average)
-        #
-        # for particle in particles_to_average:
-        #     x += particle.position.x
-        #     y += particle.position.y
-        #     z += particle.position.z
-        #     orx += particle.orientation.x
-        #     ory += particle.orientation.y
-        #     orz += particle.orientation.z
-        #     orw += particle.orientation.w
-        #
-        # result = Pose()
-        #
-        # result.position.x = x / count
-        # result.position.y = y / count
-        # result.position.z = z / count
-        #
-        # result.orientation.x = orx / count
-        # result.orientation.y = ory / count
-        # result.orientation.z = orz / count
-        # result.orientation.w = orw / count
 
         x = 0
         y = 0

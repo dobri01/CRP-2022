@@ -78,12 +78,12 @@ class PFLocaliser(PFLocaliserBase):
         These we had to tweak, with the noise to big the cloud was too spread to be useful
         """
 
-        self.ODOM_ROTATION_NOISE = 45
+        self.ODOM_ROTATION_NOISE = 5
         self.ODOM_TRANSLATION_NOISE = 0.004
         self.ODOM_DRIFT_NOISE = 0.004
 
         # ----- Sensor model parameters
-        self.NUMBER_PREDICTED_READINGS = 200
+        self.NUMBER_PREDICTED_READINGS = 300
         # Number of readings to predict
 
 
@@ -563,5 +563,3 @@ class PFLocaliser(PFLocaliserBase):
         result.orientation.w = orw / count
 
         return result
-
-   

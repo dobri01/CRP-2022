@@ -29,6 +29,20 @@ from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 
 
+from geometry_msgs.msg import Pose, PoseArray, Quaternion, PoseWithCovarianceStamped
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from scipy.cluster.hierarchy import linkage, fcluster, fclusterdata
+from .util import rotateQuaternion, getHeading
+from .pf_base import PFLocaliserBase
+from time import time
+import numpy as np
+import random
+import rospy
+import math
+import copy
+
+
+
 # #
 # # np.random.bit_generator = np.super()._bit_generator
 #
@@ -58,24 +72,34 @@ class PFLocaliser(PFLocaliserBase):
 
         # ----- Set motion model parameters
 
+        self.CLUSTER_DISTANCE_THRESHOLD = 0.35
+        self.POSE_ESTIMATE_TECHNIQUE = "hac clustering"
         """
         These we had to tweak, with the noise to big the cloud was too spread to be useful
         """
 
         self.ODOM_ROTATION_NOISE = 45
-        self.ODOM_TRANSLATION_NOISE = 0.04
+        self.ODOM_TRANSLATION_NOISE = 0.004
         self.ODOM_DRIFT_NOISE = 0.004
 
         # ----- Sensor model parameters
-        self.NUMBER_PREDICTED_READINGS = 100  # Number of readings to predict
+        self.NUMBER_PREDICTED_READINGS = 200
+        # Number of readings to predict
 
+
+
+        
         self.MY_MAP_STATES = []
 
     # NIAM + TOM
 
-    def initialise_particle_cloud3(self, initialpose):
+    def initialise_particle_cloud_map(self, initialpose):
 
         '''picks random locations throughout the map'''
+
+        self.MY_MAP_STATES = self.create_map_states()
+
+
         poseArray = PoseArray()
 
         temp = []
@@ -94,9 +118,11 @@ class PFLocaliser(PFLocaliserBase):
         position = random.choice(self.MY_MAP_STATES)
         particle.position.x = position.x
         particle.position.y = position.y
+        particle.orientation.z = math.radians(random.uniform(0, 360))
+        particle.orientation.w = math.radians(random.uniform(0, 360))
         return particle
 
-    def initialise_particle_cloud2(self, initialpose):
+    def initialise_particle_cloud_graph(self, initialpose):
 
         '''particle cloud with the graph lines we must stay within'''
 
@@ -197,9 +223,18 @@ class PFLocaliser(PFLocaliserBase):
 
         return map_states
 
+
+    def update_particle_cloud2(self, scan):
+        pass
+
     def update_particle_cloud(self, scan):
 
+        self.display("entered ")
+
         # 5th of them randomly around
+
+        global latest_scan
+        latest_scan = scan
 
         self.listener()
 
@@ -247,7 +282,7 @@ class PFLocaliser(PFLocaliserBase):
             part = self.pick_from_map()
             part.orientation.z = random.uniform(0, math.radians(360))
             part.orientation.w = random.uniform(0, math.radians(360))
-            self.display(part)
+            # self.display(part)
 
             poses_to_return.append(part)
 
@@ -282,6 +317,9 @@ class PFLocaliser(PFLocaliserBase):
 
         cloud_to_return = PoseArray()
         cloud_to_return.poses.extend(poses_to_return)
+
+
+        self.display(len(cloud_to_return.poses))
 
         self.particlecloud = cloud_to_return
 
@@ -326,12 +364,14 @@ class PFLocaliser(PFLocaliserBase):
     def convert(self, lst):
         xs = []
         ys = []
+        ws = []
 
         for particle in self.particlecloud.poses:
             xs.append(particle.position.x)
             ys.append(particle.position.y)
+            ws.append(self.sensor_model.get_weight(latest_scan, particle))
 
-        return {'x values': xs, 'y values': ys}
+        return {'x values': xs, 'y values': ys, 'weights' : ws}
 
     def biggest_number_index(self, lst):
         biggest_number_index = [0, -1]
@@ -342,12 +382,14 @@ class PFLocaliser(PFLocaliserBase):
 
         return biggest_number_index
 
-    def estimate_pose1(self):
+    def estimate_pose_cluster(self):
 
         # convert particlecloud into dictionary
         dict = self.convert(self.particlecloud.poses)
 
         particle_dataframe = pd.DataFrame(data=dict)
+        # particle_dataframe2 = pd.DataFrame(data=dict)
+
 
         # self.display(particle_dataframe)
 
@@ -373,61 +415,121 @@ class PFLocaliser(PFLocaliserBase):
 
             print(f'The silhouette score for {i} clusters is {s_score[i]:.3f}')
 
-        # Kmeans model
-        kmeans = KMeans(best_k, random_state=42)
+        # # Kmeans model
+        # kmeans = KMeans(best_k, random_state=42)
+        # # Fit and predict on the data
+        # y_kmeans = kmeans.fit_predict(particle_dataframe)
+        # # Save the predictions as a column
+        # particle_dataframe['y_kmeans'] = y_kmeans
+        # # Check the distribution
+        # particle_dataframe['y_kmeans'].value_counts()
+
+        # Hierachical clustering model
+        hc = AgglomerativeClustering(best_k)
         # Fit and predict on the data
-        y_kmeans = kmeans.fit_predict(particle_dataframe)
+        y_hc = hc.fit_predict(particle_dataframe)
         # Save the predictions as a column
-        particle_dataframe['y_kmeans'] = y_kmeans
+        particle_dataframe['y_hc'] = y_hc
         # Check the distribution
-        particle_dataframe['y_kmeans'].value_counts()
+        particle_dataframe['y_hc'].value_counts()
 
-        products_list = particle_dataframe.values.tolist()
+        # products_list = particle_dataframe.values.tolist()
+        products_list2 = particle_dataframe.values.tolist()
 
-        totals = list(particle_dataframe['y_kmeans'].value_counts())
 
-        biggest_number_index = self.biggest_number_index(totals)
+        # totals = list(particle_dataframe['y_kmeans'].value_counts())
+        totals = list(particle_dataframe['y_hc'].value_counts())
+
+        # self.display(totals)
+        self.display(totals)
+
 
         indexes_to_average = []
+        biggest_number_index = self.biggest_number_index(totals)
+        for z in range(self.NUMBER_PREDICTED_READINGS):
+            if products_list2[z][3] == biggest_number_index[1]:
+                indexes_to_average.append(z)
+
         list_list = []
 
+
+        """for standard deviation model"""
+
         # plan = calculate standard deviation of plots and try that as a measure of best cluster
+        #
+        # set up list to hold the array of x values and y values corresponding to a particular cluster along side
+        # that particles index
 
-        # set up list to hold the array of x values and y values corresponding to a particular cluster along
+        # not working currently but think I've thought of a solution commenting this so this wil be updated
 
-        # not working currently but think I've thought ofd a solution commenting this so this wil be updated
+
 
         for w in range(best_k):
-            list_list.append(([[], []], []))
-
-        for x in range(self.NUMBER_PREDICTED_READINGS):
-            list_list[int(products_list[x][2])][0][0].append(products_list[x][0])
-            list_list[int(products_list[x][2])][0][1].append(products_list[x][1])
-
-            list_list[int(products_list[x][2])][1].append(x)
+            list_list.append(([[], [], []], []))
 
         self.display(list_list)
+
+            # ([[x values],[y values]], [index])
+
+        for x in range(self.NUMBER_PREDICTED_READINGS):
+            list_list[int(products_list2[x][3])][0][0].append(products_list2[x][0])
+            list_list[int(products_list2[x][3])][0][1].append(products_list2[x][1])
+            list_list[int(products_list2[x][3])][0][2].append(products_list2[x][2])
+            list_list[int(products_list2[x][3])][1].append(x)
+
+        # self.display("\n\nproudct list [1][2]\n")
+        # self.display(int(products_list2[1][2]))
+        #
+        # self.display("\n\nlist_list[products_list[1][2]]")
+        # self.display(list_list[int(products_list2[1][2])])
+        # self.display("\n\nproudct list")
+        # self.display(products_list2)
+        #
+        # self.display("\n\nlist list")
+        # self.display(list_list)
+
 
         just_positions = []
         devs = []
 
+        #calculate standard deviation for them all
+
         for f in range(len(list_list)):
             just_positions.append((list_list[f][0]))
-            self.display("\n" + str(just_positions[f]) + "\n")
-            self.display(np.std(just_positions[f]))
             numpydev = np.array(just_positions[f][0])
             devs.append(np.std(numpydev))
 
-        biggest = -1
-        biggest_index = -1
+        # self.display("\n\njustpoitions")
+        # self.display(just_positions)
+        #
+        # self.display("\n\ndevs")
+        # self.display(devs)
+
+
+
+        smallest = -1
+        smallest_index = -1
         for m in range(len(devs)):
-            if devs[m] > biggest:
-                biggest_index = m
-                biggest = devs[m]
+            if devs[m] < smallest:
+                smallest = m
+                smallest_index = devs[m]
 
         for z in range(self.NUMBER_PREDICTED_READINGS):
-            if products_list[z][2] == biggest_index:
+            if products_list2[z][3] == smallest_index:
                 indexes_to_average.append(z)
+
+        self.display("\n\nindexes to average")
+        self.display(indexes_to_average)
+
+        self.display("\n\nparticlecloud")
+        b = 0
+        for particle in self.particlecloud.poses:
+            self.display("particle " + str(b))
+            self.display(particle.position.x)
+            self.display(particle.position.y)
+            b += 1
+
+        """"""""""""""""""""""""""""""""
 
         x = 0
         y = 0
@@ -461,3 +563,5 @@ class PFLocaliser(PFLocaliserBase):
         result.orientation.w = orw / count
 
         return result
+
+   

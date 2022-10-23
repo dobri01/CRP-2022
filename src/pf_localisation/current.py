@@ -28,6 +28,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.cluster import AgglomerativeClustering
 
+
 from geometry_msgs.msg import Pose, PoseArray, Quaternion, PoseWithCovarianceStamped
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from scipy.cluster.hierarchy import linkage, fcluster, fclusterdata
@@ -39,6 +40,7 @@ import random
 import rospy
 import math
 import copy
+
 
 
 # #
@@ -76,22 +78,27 @@ class PFLocaliser(PFLocaliserBase):
         These we had to tweak, with the noise to big the cloud was too spread to be useful
         """
 
-        self.ODOM_ROTATION_NOISE = 5
-        self.ODOM_TRANSLATION_NOISE = 0.00004
-        self.ODOM_DRIFT_NOISE = 0.00004
+        self.ODOM_ROTATION_NOISE = 45
+        self.ODOM_TRANSLATION_NOISE = 0.004
+        self.ODOM_DRIFT_NOISE = 0.004
 
         # ----- Sensor model parameters
-        self.NUMBER_PREDICTED_READINGS = 200
+        self.NUMBER_PREDICTED_READINGS = 100
         # Number of readings to predict
 
+
+
+        
         self.MY_MAP_STATES = []
 
     # NIAM + TOM
 
-    def initialise_particle_cloud(self, initialpose):
+    def initialise_particle_cloud_map(self, initialpose):
+
         '''picks random locations throughout the map'''
 
         self.MY_MAP_STATES = self.create_map_states()
+
 
         poseArray = PoseArray()
 
@@ -152,7 +159,7 @@ class PFLocaliser(PFLocaliserBase):
 
         return poseArray
 
-    def initialise_particle_cloud_first(self, initialpose):
+    def initialise_particle_cloud(self, initialpose):
 
         '''particle cloud we used initially'''
 
@@ -216,6 +223,7 @@ class PFLocaliser(PFLocaliserBase):
 
         return map_states
 
+
     def update_particle_cloud2(self, scan):
         pass
 
@@ -228,7 +236,7 @@ class PFLocaliser(PFLocaliserBase):
         global latest_scan
         latest_scan = scan
 
-        # self.listener()
+        self.listener()
 
         cloud = PoseArray()
         cloud = self.particlecloud
@@ -242,6 +250,7 @@ class PFLocaliser(PFLocaliserBase):
 
         # create weight pose array and also add weight to the priority queue
         # had to use weightsum because we must normalise the wieghts because they are not between 1 and 0 initially
+        #
         queue = PriorityQueue()
         for j in range(self.NUMBER_PREDICTED_READINGS):
             pose = cloud.poses[j]
@@ -256,13 +265,10 @@ class PFLocaliser(PFLocaliserBase):
 
         # normally a fraction so we acn have 1/5 of the particles to be randomly distributed for example
         # does not work without better estimation however
-        fraction_to_remove = 0
+        fraction_to_remove = 0.05
 
         number_of_weights_to_remove = int(fraction_to_remove * self.NUMBER_PREDICTED_READINGS)
         number_of_poses = self.NUMBER_PREDICTED_READINGS - number_of_weights_to_remove
-
-
-        # self.display("\n" + str(weight_poses))
 
         # get poses with smallest weights
         # and remove those poses from weight list
@@ -271,34 +277,23 @@ class PFLocaliser(PFLocaliserBase):
 
         for k in range(number_of_weights_to_remove):
             combination = queue.get()
-            # self.display(combination)
             weight_sum -= combination[0]
             weight_poses.remove(combination)
             part = self.pick_from_map()
             part.orientation.z = random.uniform(0, math.radians(360))
             part.orientation.w = random.uniform(0, math.radians(360))
             # self.display(part)
-            #
-            # weight = self.sensor_model.get_weight(scan, part)
-            # weight_pose = (weight, (part.position.x, part.position.y, part.orientation))
-            # weight_poses.append(weight_pose)
-            # weight_sum += weight
-            #
+
             poses_to_return.append(part)
 
         #
         commulutive_weights.append(weight_poses[0][0] / weight_sum)
-
-        # self.display("\n" + str(weight_poses))
-        # self.display("\n" + str(weight_poses[1][0]))
 
         # stochastic universal sampling algorithm
 
         for x in range(1, number_of_poses):
             weight_by_sum = weight_poses[x][0] / weight_sum
             commulutive_weights.append(commulutive_weights[x - 1] + weight_by_sum)
-
-        self.display(commulutive_weights)
 
         threshold = random.uniform(0, 1 / number_of_poses)
 
@@ -323,6 +318,7 @@ class PFLocaliser(PFLocaliserBase):
         cloud_to_return = PoseArray()
         cloud_to_return.poses.extend(poses_to_return)
 
+
         self.display(len(cloud_to_return.poses))
 
         self.particlecloud = cloud_to_return
@@ -332,7 +328,7 @@ class PFLocaliser(PFLocaliserBase):
 
         # DOBRI
 
-    def estimate_pose_dobri(self):
+    def estimate_pose(self):
 
         x = 0
         y = 0
@@ -375,7 +371,7 @@ class PFLocaliser(PFLocaliserBase):
             ys.append(particle.position.y)
             ws.append(self.sensor_model.get_weight(latest_scan, particle))
 
-        return {'x values': xs, 'y values': ys, 'weights': ws}
+        return {'x values': xs, 'y values': ys, 'weights' : ws}
 
     def biggest_number_index(self, lst):
         biggest_number_index = [0, -1]
@@ -393,6 +389,7 @@ class PFLocaliser(PFLocaliserBase):
 
         particle_dataframe = pd.DataFrame(data=dict)
         # particle_dataframe2 = pd.DataFrame(data=dict)
+
 
         # self.display(particle_dataframe)
 
@@ -439,11 +436,13 @@ class PFLocaliser(PFLocaliserBase):
         # products_list = particle_dataframe.values.tolist()
         products_list2 = particle_dataframe.values.tolist()
 
+
         # totals = list(particle_dataframe['y_kmeans'].value_counts())
         totals = list(particle_dataframe['y_hc'].value_counts())
 
         # self.display(totals)
         self.display(totals)
+
 
         indexes_to_average = []
         biggest_number_index = self.biggest_number_index(totals)
@@ -452,6 +451,7 @@ class PFLocaliser(PFLocaliserBase):
                 indexes_to_average.append(z)
 
         list_list = []
+
 
         """for standard deviation model"""
 
@@ -462,12 +462,14 @@ class PFLocaliser(PFLocaliserBase):
 
         # not working currently but think I've thought of a solution commenting this so this wil be updated
 
+
+
         for w in range(best_k):
             list_list.append(([[], [], []], []))
 
         self.display(list_list)
 
-        # ([[x values],[y values]], [index])
+            # ([[x values],[y values]], [index])
 
         for x in range(self.NUMBER_PREDICTED_READINGS):
             list_list[int(products_list2[x][3])][0][0].append(products_list2[x][0])
@@ -486,10 +488,11 @@ class PFLocaliser(PFLocaliserBase):
         # self.display("\n\nlist list")
         # self.display(list_list)
 
+
         just_positions = []
         devs = []
 
-        # calculate standard deviation for them all
+        #calculate standard deviation for them all
 
         for f in range(len(list_list)):
             just_positions.append((list_list[f][0]))
@@ -501,6 +504,8 @@ class PFLocaliser(PFLocaliserBase):
         #
         # self.display("\n\ndevs")
         # self.display(devs)
+
+
 
         smallest = -1
         smallest_index = -1
@@ -559,97 +564,3 @@ class PFLocaliser(PFLocaliserBase):
 
         return result
 
-    def estimate_pose(self):
-        """
-        This should calculate and return an updated robot pose estimate based
-        on the particle cloud (self.particlecloud).
-
-        :Return:
-            | (geometry_msgs.msg.Pose) robot's estimated pose.
-
-        """
-        estimated_pose = Pose()  # Instantiate a pose object
-
-        # initialise postion and orientation lists in order to put them in a matrix
-        position_x, position_y, orientation_z, orientation_w = ([] for _ in range(4))
-
-        # add each particles positions and orientations into each corrospoing array
-        for pose_object in self.particlecloud.poses:
-            position_x.append(pose_object.position.x)
-            position_y.append(pose_object.position.y)
-            orientation_z.append(pose_object.orientation.z)
-            orientation_w.append(pose_object.orientation.w)
-
-
-
-        # convert into numpy array
-        position_x = np.array(position_x)
-        position_y = np.array(position_y)
-        orientation_z = np.array(orientation_z)
-        orientation_w = np.array(orientation_w)
-
-        # convert lists into matrix
-        # [x1 y1 z1 w1]
-        # [x2 y2 z2 w2]
-        # [x3 y3 z3 w3]
-        # [x4 y4 z4 w4]
-        distance_matrix = np.column_stack((position_x, position_y, orientation_z, orientation_w))
-
-        # performs hierarchical clusternig and returns and linkage matrix
-        linkage_matrix = linkage(distance_matrix, method='median')
-
-        # Cluster the particles in the particle cloud (by minimizing the differences between them) and assign each
-        # particle an identity corresponding to the cluster to which it belongs
-        # (returns an array of numbers representing the cluster to which each particle in the particle cloud belongs)
-        particle_cluster_identities = fcluster(linkage_matrix, self.CLUSTER_DISTANCE_THRESHOLD,
-                                               criterion='distance')
-
-        # get the amount of clusters
-        cluster_count = max(particle_cluster_identities)
-
-        # initialise an array that holds the amount of particles in each cluster
-        cluster_particle_counts = [0] * cluster_count
-
-        # initialise a list that holds the probability of each particle in a cluster summed
-        cluster_probability_weight_sums = [0] * cluster_count
-
-        # for each particle in the cluster
-        # i = index
-        # particle_cluster_identity = object at postion i
-        for i, particle_cluster_identity in enumerate(particle_cluster_identities):
-            pose_object = self.particlecloud.poses[i]  # assign a particle
-
-            probability_weight = self.sensor_model.get_weight(latest_scan, pose_object)  # current prob of that particle
-
-            cluster_particle_counts[particle_cluster_identity - 1] += 1  # Increase the number of particles that make up the cluster
-            cluster_probability_weight_sums[particle_cluster_identity - 1] += probability_weight  # Store the probability weight of the current particle the corrosondingh cluster element
-
-        # Find the most accurate particle cluster overall compared to all other clusters,
-        # Used to more accurately represent the current pose of the robot
-        cluster_highest_belief = cluster_probability_weight_sums.index(max(cluster_probability_weight_sums)) + 1
-        # Store the number of particles that make up the most precise cluster
-        cluster_highest_belief_particle_count = cluster_particle_counts[
-            cluster_highest_belief - 1]  # Store the number of particles that make up the most precise cluster
-
-
-        # Initialize the position and orientation sum variables for the estimated pose averaging operation
-        position_sum_x, position_sum_y, orientation_sum_z, orientation_sum_w = (0 for _ in range(4))
-
-        #
-        # sum up the postions of the particles with the highest proability in the cloud to avarage them
-        for i, particle_cluster_identity in enumerate(particle_cluster_identities):
-            if (particle_cluster_identity == cluster_highest_belief):
-                pose_object = self.particlecloud.poses[i]  # Assign a pose object stored in the particle cloud to the particle (access pose data)
-
-                position_sum_x += pose_object.position.x
-                position_sum_y += pose_object.position.y
-                orientation_sum_z += pose_object.orientation.z
-                orientation_sum_w += pose_object.orientation.w
-
-        estimated_pose.position.x = position_sum_x / cluster_highest_belief_particle_count
-        estimated_pose.position.y = position_sum_y / cluster_highest_belief_particle_count
-        estimated_pose.orientation.z = orientation_sum_z / cluster_highest_belief_particle_count
-        estimated_pose.orientation.w = orientation_sum_w / cluster_highest_belief_particle_count
-
-
-        return estimated_pose

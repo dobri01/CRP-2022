@@ -80,8 +80,9 @@ class PFLocaliser(PFLocaliserBase):
         self.ODOM_TRANSLATION_NOISE = 0.00004
         self.ODOM_DRIFT_NOISE = 0.00004
 
+
         # ----- Sensor model parameters
-        self.NUMBER_PREDICTED_READINGS = 200
+        self.NUMBER_PREDICTED_READINGS = 300
         # Number of readings to predict
 
         self.MY_MAP_STATES = []
@@ -558,6 +559,7 @@ class PFLocaliser(PFLocaliserBase):
         result.orientation.w = orw / count
 
         return result
+<<<<<<< HEAD
 
     def estimate_pose(self):
         """
@@ -653,3 +655,5 @@ class PFLocaliser(PFLocaliserBase):
 
 
         return estimated_pose
+=======
+>>>>>>> 0764a1376460223ffc8845d8ee8dce70158611e5

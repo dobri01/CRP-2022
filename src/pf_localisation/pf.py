@@ -63,6 +63,9 @@ import copy
 
 class PFLocaliser(PFLocaliserBase):
     moved = False
+    move_count = 0
+
+
 
     def __init__(self):
         # ----- Call the superclass constructor
@@ -83,6 +86,9 @@ class PFLocaliser(PFLocaliserBase):
 
         # ----- Sensor model parameters
         self.NUMBER_PREDICTED_READINGS = 200
+        self.MIN_NUM = self.NUMBER_PREDICTED_READINGS
+
+        self.ticks = 0
         # Number of readings to predict
 
         self.MY_MAP_STATES = []
@@ -235,11 +241,64 @@ class PFLocaliser(PFLocaliserBase):
         | (geometry_msgs.msg.PoseArray) poses of the particles
     """
 
+    def adaptive(self, initialpose):
+
+        '''particle cloud we used initially'''
+
+        self.MY_MAP_STATES = self.create_map_states()
+        """
+        this noise had to be reduced right down because our estimation could not handle how spread out the initial
+        cloud was
+        """
+        noise = 0.1
+
+        temp = []
+
+
+        fraction_to_be_random = 0.4
+        number_to_be_random = int(self.NUMBER_PREDICTED_READINGS * fraction_to_be_random)
+        self.NUMBER_PREDICTED_READINGS = self.NUMBER_PREDICTED_READINGS + number_to_be_random
+
+        self.display("called adaptive")
+
+        for rcount in range(number_to_be_random):
+            temp.append(self.pick_from_map())
+
+        poseArray = PoseArray()
+        poseArray = self.particlecloud
+        poseArray.poses.extend(temp)
+
+        self.display("\n" + str(len(poseArray.poses)))
+
+        return poseArray
+
+    """
+    Set particle cloud to initialpose plus noise
+
+    Called whenever an initialpose message is received (to change the
+    starting location of the robot), or a new occupancy_map is received.
+    self.particlecloud can be initialised here. Initial pose of the robot
+    is also set here.
+
+    :Args:
+        | initialpose: the initial pose estimate
+    :Return:
+        | (geometry_msgs.msg.PoseArray) poses of the particles
+    """
+
+
     # JOSH
 
     def listener(self):
         '''waits until message to move is received'''
         rospy.wait_for_message("/cmd_vel", Twist, 100)
+
+    def callback(self, data):
+        PFLocaliser.move_count += 1
+
+    def move_counter(self):
+        rospy.Subscriber("cmd_vel", Twist, self.callback)
+        # spin() simply keeps python from exiting until this node is stopped
 
     def create_map_states(self):
         """Create list of set of points that lie in the map"""
@@ -261,6 +320,22 @@ class PFLocaliser(PFLocaliserBase):
         pass
 
     def update_particle_cloud(self, scan):
+
+        # self.move_counter()
+        # self.display(PFLocaliser.move_count)
+        # self.ticks += 1
+        # if self.ticks > 10:
+        if self.NUMBER_PREDICTED_READINGS == self.MIN_NUM:
+            self.particlecloud = self.adaptive(self.estimatedpose)
+        else:
+            for i in range(40):
+                self.NUMBER_PREDICTED_READINGS -= 1
+                cloud = PoseArray()
+                cloud = self.particlecloud.poses
+                cloud.remove(random.choice(cloud))
+                self.particlecloud.poses = cloud
+
+        self.display(len(self.particlecloud.poses))
 
         self.display("entered ")
 

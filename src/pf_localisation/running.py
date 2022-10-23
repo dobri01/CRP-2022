@@ -265,7 +265,7 @@ class PFLocaliser(PFLocaliserBase):
 
         # normally a fraction so we acn have 1/5 of the particles to be randomly distributed for example
         # does not work without better estimation however
-        fraction_to_remove = 0.05
+        fraction_to_remove = 0
 
         number_of_weights_to_remove = int(fraction_to_remove * self.NUMBER_PREDICTED_READINGS)
         number_of_poses = self.NUMBER_PREDICTED_READINGS - number_of_weights_to_remove

@@ -76,20 +76,20 @@ class PFLocaliser(PFLocaliserBase):
         These we had to tweak, with the noise to big the cloud was too spread to be useful
         """
 
-        self.ODOM_ROTATION_NOISE = 5
-        self.ODOM_TRANSLATION_NOISE = 0.00004
-        self.ODOM_DRIFT_NOISE = 0.00004
+        self.ODOM_ROTATION_NOISE = 15
+        self.ODOM_TRANSLATION_NOISE = 0.004
+        self.ODOM_DRIFT_NOISE = 0.004
 
 
         # ----- Sensor model parameters
-        self.NUMBER_PREDICTED_READINGS = 300
+        self.NUMBER_PREDICTED_READINGS = 200
         # Number of readings to predict
 
         self.MY_MAP_STATES = []
 
     # NIAM + TOM
 
-    def initialise_particle_cloud(self, initialpose):
+    def initialise_particle_cloud_map(self, initialpose):
         '''picks random locations throughout the map'''
 
         self.MY_MAP_STATES = self.create_map_states()
@@ -105,6 +105,9 @@ class PFLocaliser(PFLocaliserBase):
         poseArray.poses = temp
 
         return poseArray
+
+
+
 
     def pick_from_map(self):
         particle = Pose()
@@ -153,7 +156,7 @@ class PFLocaliser(PFLocaliserBase):
 
         return poseArray
 
-    def initialise_particle_cloud_first(self, initialpose):
+    def initialise_particle_cloud_ours(self, initialpose):
 
         '''particle cloud we used initially'''
 
@@ -176,6 +179,43 @@ class PFLocaliser(PFLocaliserBase):
             particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
             particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation, random.uniform(0, 2 * math.pi))
             temp.append(particle)
+
+        poseArray.poses = temp
+
+        return poseArray
+
+
+
+    def initialise_particle_cloud(self, initialpose):
+
+        '''particle cloud we used initially'''
+
+        self.MY_MAP_STATES = self.create_map_states()
+        """
+        this noise had to be reduced right down because our estimation could not handle how spread out the initial
+        cloud was
+        """
+        noise = 0.2
+
+        poseArray = PoseArray()
+
+        temp = []
+
+        fraction_to_be_random = 0.5
+        number_to_be_random = int(self.NUMBER_PREDICTED_READINGS * fraction_to_be_random)
+        num_of_particles = self.NUMBER_PREDICTED_READINGS - number_to_be_random
+
+        self.display("called initiialise")
+        for count in range(num_of_particles):
+            particle = Pose()
+            particle.position.x = random.gauss(initialpose.pose.pose.position.x, noise)
+
+            particle.position.y = random.gauss(initialpose.pose.pose.position.y, noise)
+            particle.orientation = rotateQuaternion(initialpose.pose.pose.orientation, random.uniform(0, 2 * math.pi))
+            temp.append(particle)
+
+        for rcount in range(number_to_be_random):
+            temp.append(self.pick_from_map())
 
         poseArray.poses = temp
 
@@ -299,7 +339,7 @@ class PFLocaliser(PFLocaliserBase):
             weight_by_sum = weight_poses[x][0] / weight_sum
             commulutive_weights.append(commulutive_weights[x - 1] + weight_by_sum)
 
-        self.display(commulutive_weights)
+        # self.display(commulutive_weights)
 
         threshold = random.uniform(0, 1 / number_of_poses)
 
@@ -324,8 +364,8 @@ class PFLocaliser(PFLocaliserBase):
         cloud_to_return = PoseArray()
         cloud_to_return.poses.extend(poses_to_return)
 
-        self.display(len(cloud_to_return.poses))
-
+        # self.display(len(cloud_to_return.poses))
+        #
         self.particlecloud = cloud_to_return
 
     def display(self, message):

@@ -335,6 +335,8 @@ class PFLocaliser(PFLocaliserBase):
 
     def estimate_pose_dobri(self):
 
+        """dobri estimation"""
+
         x = 0
         y = 0
         z = 0
@@ -559,17 +561,12 @@ class PFLocaliser(PFLocaliserBase):
         result.orientation.w = orw / count
 
         return result
-<<<<<<< HEAD
+
 
     def estimate_pose(self):
-        """
-        This should calculate and return an updated robot pose estimate based
-        on the particle cloud (self.particlecloud).
 
-        :Return:
-            | (geometry_msgs.msg.Pose) robot's estimated pose.
+        """good cluster"""
 
-        """
         estimated_pose = Pose()  # Instantiate a pose object
 
         # initialise postion and orientation lists in order to put them in a matrix
@@ -655,5 +652,3 @@ class PFLocaliser(PFLocaliserBase):
 
 
         return estimated_pose
-=======
->>>>>>> 0764a1376460223ffc8845d8ee8dce70158611e5

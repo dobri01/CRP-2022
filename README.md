@@ -14,8 +14,8 @@ fraction_to_be_random = 0.5 #particles initialised at random locations %
 ```
 ## Update particle cloud
 ```python
-updated_particles = 0.4 #percentage of particles to get added
-removed_particles = 40 #particles to get removed 
+updated_particles = 0.45 #percentage of particles to get added
+removed_particles = 30 #particles to get removed 
 ```
 
 # Other functions

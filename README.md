@@ -81,6 +81,23 @@ As a baseline we'll use the AMCL localisation node in it's default settings:
    </p>
 </figure>
 
+<figure>
+   <p align="center">
+     <img src="https://github.com/dobri01/CRP-2022/blob/a4aecd1e4ad8da4a54a0af3bd11622e1f13f0511/images/Pasted%20image%2020221024110956.png" style="width:50%" />
+     </br>
+    <em> Correct Pose Estimation - Initialisation - Kidnaped Robot </em>
+   </p>
+</figure>
+
+<figure>
+   <p align="center">
+     <img src="https://github.com/dobri01/CRP-2022/blob/a4aecd1e4ad8da4a54a0af3bd11622e1f13f0511/images/Pasted%20image%2020221024111300.png" style="width:50%" />
+     </br>
+    <em> Correct Pose Estimation - Basic Movement - Kidnaped Robot </em>
+   </p>
+</figure>
+
+After the robot is kidnaped from the **blue location** and put into the **purple location** the particle cloud is reinitialised and after a bit of movement 2 clusters with possible positions are selected. After a bit of extra movement the correct cluster is selected and the initialisation is correct.
 
 ## Our project
 ### Last version - specified parameters
@@ -117,10 +134,20 @@ As a baseline we'll use the AMCL localisation node in it's default settings:
    </p>
 </figure>
 
+<figure>
+   <p align="center">
+     <img src="https://github.com/dobri01/CRP-2022/blob/a4aecd1e4ad8da4a54a0af3bd11622e1f13f0511/images/Pasted%20image%2020221024110319.png" style="width:50%" />
+     </br>
+    <em> Correct Pose Estimation - Basic Movement - Kidnaped to a different location </em>
+   </p>
+</figure>
+
 
 After just a bit more movement the second cluster disappears and the localisation is accurate. Same localisation can be achieved if we wait in the same spot for a few seconds because of the adaptive particle cloud.
 
-To get to this point and have good performance even with an incorrect pose estimation we had to implement **clustering** and **adaptive particles updating** which randomly adds new particles on top of the old ones and then removes outliers. 
+To get to this point and have good performance even with an incorrect pose estimation we had to implement **clustering** and **adaptive particles updating** which randomly adds new particles on top of the old ones, then resamples which will reinforce any correct randomly selected position. The number of particles in the cloud will then be slowly decreased by randomly removing particles in the entire cloud, before reaching a threshold, adding more random samples and resampling again. This process goes on continuously. 
+If we kidnap the robot to the purple location after finishing the basic movement, the localisation is quickly recovered after a bit of movement as shown in the simulation. (blue spot)
+Our algorithm just after kidnapping doesn't reinitialise the particle cloud and is reliant on the **adaptive particles updating**.
 
 ## Design choices
 

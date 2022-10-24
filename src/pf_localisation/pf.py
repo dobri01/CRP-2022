@@ -255,7 +255,7 @@ class PFLocaliser(PFLocaliserBase):
         temp = []
 
 
-        fraction_to_be_random = 0.4
+        fraction_to_be_random = 0.45
         number_to_be_random = int(self.NUMBER_PREDICTED_READINGS * fraction_to_be_random)
         self.NUMBER_PREDICTED_READINGS = self.NUMBER_PREDICTED_READINGS + number_to_be_random
 
@@ -328,11 +328,21 @@ class PFLocaliser(PFLocaliserBase):
         if self.NUMBER_PREDICTED_READINGS == self.MIN_NUM:
             self.particlecloud = self.adaptive(self.estimatedpose)
         else:
-            for i in range(40):
+            queue = PriorityQueue()
+            cloud = self.particlecloud.poses
+            for l in range(len(cloud)):
+                queue.put(((self.sensor_model.get_weight(scan, cloud[l])),(cloud[l].position.x, cloud[l].position.y, cloud[l].orientation)))
+            for i in range(30):
+                discarded = queue.get()
+                # self.display(discarded)
+                p = Pose()
+                p.position.x = discarded[1][0]
+                p.position.y = discarded[1][1]
+                p.orientation = discarded[1][2]
                 self.NUMBER_PREDICTED_READINGS -= 1
                 cloud = PoseArray()
                 cloud = self.particlecloud.poses
-                cloud.remove(random.choice(cloud))
+                cloud.remove(p)
                 self.particlecloud.poses = cloud
 
         self.display(len(self.particlecloud.poses))

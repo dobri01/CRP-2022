@@ -194,13 +194,9 @@ class PFLocaliser(PFLocaliserBase):
 
     def initialise_particle_cloud(self, initialpose):
 
-        '''particle cloud we used initially'''
 
         self.MY_MAP_STATES = self.create_map_states()
-        """
-        this noise had to be reduced right down because our estimation could not handle how spread out the initial
-        cloud was
-        """
+
         noise = 0.2
 
         poseArray = PoseArray()
@@ -211,7 +207,7 @@ class PFLocaliser(PFLocaliserBase):
         number_to_be_random = int(self.NUMBER_PREDICTED_READINGS * fraction_to_be_random)
         num_of_particles = self.NUMBER_PREDICTED_READINGS - number_to_be_random
 
-        self.display("called initiialise")
+        self.display("called initialise")
         for count in range(num_of_particles):
             particle = Pose()
             particle.position.x = random.gauss(initialpose.pose.pose.position.x, noise)
@@ -227,33 +223,15 @@ class PFLocaliser(PFLocaliserBase):
 
         return poseArray
 
-    """
-    Set particle cloud to initialpose plus noise
-
-    Called whenever an initialpose message is received (to change the
-    starting location of the robot), or a new occupancy_map is received.
-    self.particlecloud can be initialised here. Initial pose of the robot
-    is also set here.
-
-    :Args:
-        | initialpose: the initial pose estimate
-    :Return:
-        | (geometry_msgs.msg.PoseArray) poses of the particles
-    """
 
     def adaptive(self, initialpose):
 
-        '''particle cloud we used initially'''
 
         self.MY_MAP_STATES = self.create_map_states()
-        """
-        this noise had to be reduced right down because our estimation could not handle how spread out the initial
-        cloud was
-        """
+
         noise = 0.1
 
         temp = []
-
 
         fraction_to_be_random = 0.45
         number_to_be_random = int(self.NUMBER_PREDICTED_READINGS * fraction_to_be_random)
@@ -316,8 +294,6 @@ class PFLocaliser(PFLocaliserBase):
 
         return map_states
 
-    def update_particle_cloud2(self, scan):
-        pass
 
     def update_particle_cloud(self, scan):
 
@@ -325,6 +301,9 @@ class PFLocaliser(PFLocaliserBase):
         # self.display(PFLocaliser.move_count)
         # self.ticks += 1
         # if self.ticks > 10:
+
+        removed_particles = 40
+
         if self.NUMBER_PREDICTED_READINGS == self.MIN_NUM:
             self.particlecloud = self.adaptive(self.estimatedpose)
         else:
@@ -364,10 +343,10 @@ class PFLocaliser(PFLocaliserBase):
         weight_sum = 0
 
         weight_poses = []
-        # wieghts and their corrosponding poses stored together
+        # weights and their corrosponding poses stored together
 
         # create weight pose array and also add weight to the priority queue
-        # had to use weightsum because we must normalise the wieghts because they are not between 1 and 0 initially
+        # had to use weightsum because we must normalise the weights because they are not between 1 and 0 initially
         queue = PriorityQueue()
         for j in range(self.NUMBER_PREDICTED_READINGS):
             pose = cloud.poses[j]
@@ -382,37 +361,36 @@ class PFLocaliser(PFLocaliserBase):
 
         # normally a fraction so we acn have 1/5 of the particles to be randomly distributed for example
         # does not work without better estimation however
-        fraction_to_remove = 0
+        # fraction_to_remove = 0 # didn't work
 
-        number_of_weights_to_remove = int(fraction_to_remove * self.NUMBER_PREDICTED_READINGS)
-        number_of_poses = self.NUMBER_PREDICTED_READINGS - number_of_weights_to_remove
+        # number_of_weights_to_remove = int(fraction_to_remove * self.NUMBER_PREDICTED_READINGS)
+        # number_of_poses = self.NUMBER_PREDICTED_READINGS - number_of_weights_to_remove
 
+        # # self.display("\n" + str(weight_poses))
 
-        # self.display("\n" + str(weight_poses))
-
-        # get poses with smallest weights
-        # and remove those poses from weight list
-        # also makes new random poses to fill these gaps
+        # # get poses with smallest weights
+        # # and remove those poses from weight list
+        # # also makes new random poses to fill these gaps
         poses_to_return = []
 
-        for k in range(number_of_weights_to_remove):
-            combination = queue.get()
-            # self.display(combination)
-            weight_sum -= combination[0]
-            weight_poses.remove(combination)
-            part = self.pick_from_map()
-            part.orientation.z = random.uniform(0, math.radians(360))
-            part.orientation.w = random.uniform(0, math.radians(360))
-            # self.display(part)
-            #
-            # weight = self.sensor_model.get_weight(scan, part)
-            # weight_pose = (weight, (part.position.x, part.position.y, part.orientation))
-            # weight_poses.append(weight_pose)
-            # weight_sum += weight
-            #
-            poses_to_return.append(part)
+        # for k in range(number_of_weights_to_remove):
+        #     combination = queue.get()
+        #     # self.display(combination)
+        #     weight_sum -= combination[0]
+        #     weight_poses.remove(combination)
+        #     part = self.pick_from_map()
+        #     part.orientation.z = random.uniform(0, math.radians(360))
+        #     part.orientation.w = random.uniform(0, math.radians(360))
+        #     # self.display(part)
+            
+        #     # weight = self.sensor_model.get_weight(scan, part)
+        #     # weight_pose = (weight, (part.position.x, part.position.y, part.orientation))
+        #     # weight_poses.append(weight_pose)
+        #     # weight_sum += weight
+            
+        #     poses_to_return.append(part)
 
-        #
+        
         commulutive_weights.append(weight_poses[0][0] / weight_sum)
 
         # self.display("\n" + str(weight_poses))
@@ -420,17 +398,17 @@ class PFLocaliser(PFLocaliserBase):
 
         # stochastic universal sampling algorithm
 
-        for x in range(1, number_of_poses):
+        for x in range(1, self.NUMBER_PREDICTED_READINGS):
             weight_by_sum = weight_poses[x][0] / weight_sum
             commulutive_weights.append(commulutive_weights[x - 1] + weight_by_sum)
 
         # self.display(commulutive_weights)
 
-        threshold = random.uniform(0, 1 / number_of_poses)
+        threshold = random.uniform(0, 1 / self.NUMBER_PREDICTED_READINGS)
 
         i = 0
 
-        for count in range(0, number_of_poses):
+        for count in range(0, self.NUMBER_PREDICTED_READINGS):
             while threshold > commulutive_weights[i]:
                 i = i + 1
             # add noise
@@ -444,7 +422,7 @@ class PFLocaliser(PFLocaliserBase):
                                                                                   self.ODOM_ROTATION_NOISE)))
 
             poses_to_return.append(noisy_pose)
-            threshold = threshold + (1 / number_of_poses)
+            threshold = threshold + (1 / self.NUMBER_PREDICTED_READINGS)
 
         cloud_to_return = PoseArray()
         cloud_to_return.poses.extend(poses_to_return)
@@ -458,9 +436,7 @@ class PFLocaliser(PFLocaliserBase):
 
         # DOBRI
 
-    def estimate_pose_dobri(self):
-
-        """dobri estimation"""
+    def estimate_pose_medium(self):
 
         x = 0
         y = 0

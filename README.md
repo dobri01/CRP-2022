@@ -176,7 +176,15 @@ fraction_to_be_random = 0.3 #particles initialised at random locations %
 
 ### Initialising particle cloud methods
 In the beginning of the project we had a simple gaussian initialisation **initialise_particle_cloud_ours** around the Estimate Point which worked great when the point was accurate but quickly degraded if it wasn't. 
-![[Pasted image 20221024024715.png|Incorrect Pose Estimation - Initialisation, initialise_particle_cloud_ours|500]]
+
+<figure>
+   <p align="center">
+     <img src="https://github.com/dobri01/CRP-2022/blob/a4aecd1e4ad8da4a54a0af3bd11622e1f13f0511/images/Pasted%20image%2020221024024715.png" style="width:50%" />
+     </br>
+    <em> Incorrect Pose Estimation - Initialisation, initialise_particle_cloud_ours </em>
+   </p>
+</figure>
+
 
 Because of the new update function, the really focused initialisation is not as detrimental in a wrong estimate scenario as new particles get generated at random locations, so the result is similar to our first experiment.
 

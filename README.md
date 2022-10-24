@@ -83,7 +83,7 @@ As a baseline we'll use the AMCL localisation node in it's default settings:
 
 <figure>
    <p align="center">
-     <img src="https://github.com/dobri01/CRP-2022/blob/a4aecd1e4ad8da4a54a0af3bd11622e1f13f0511/images/Pasted%20image%2020221024110956.png" style="width:50%" />
+     <img src="https://github.com/dobri01/CRP-2022/blob/b6df5163d4519bb73d6f5427f688a928d6b0aa15/images/Pasted%20image%2020221024110956.png" style="width:50%" />
      </br>
     <em> Correct Pose Estimation - Initialisation - Kidnaped Robot </em>
    </p>
@@ -91,7 +91,7 @@ As a baseline we'll use the AMCL localisation node in it's default settings:
 
 <figure>
    <p align="center">
-     <img src="https://github.com/dobri01/CRP-2022/blob/a4aecd1e4ad8da4a54a0af3bd11622e1f13f0511/images/Pasted%20image%2020221024111300.png" style="width:50%" />
+     <img src="https://github.com/dobri01/CRP-2022/blob/b6df5163d4519bb73d6f5427f688a928d6b0aa15/images/Pasted%20image%2020221024111300.png" style="width:50%" />
      </br>
     <em> Correct Pose Estimation - Basic Movement - Kidnaped Robot </em>
    </p>
@@ -136,7 +136,7 @@ After the robot is kidnaped from the **blue location** and put into the **purple
 
 <figure>
    <p align="center">
-     <img src="https://github.com/dobri01/CRP-2022/blob/a4aecd1e4ad8da4a54a0af3bd11622e1f13f0511/images/Pasted%20image%2020221024110319.png" style="width:50%" />
+     <img src="https://github.com/dobri01/CRP-2022/blob/b6df5163d4519bb73d6f5427f688a928d6b0aa15/images/Pasted%20image%2020221024110319.png" style="width:50%" />
      </br>
     <em> Correct Pose Estimation - Basic Movement - Kidnaped to a different location </em>
    </p>
